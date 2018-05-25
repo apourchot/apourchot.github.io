@@ -1,10 +1,10 @@
 ---
 layout: post
-title: You're up and running!
+title: Sample efficiency in Evolution Strategies
 ---
 
-Next you can update your site name, avatar and other options using the _config.yml file in the root of your repository (shown below).
+Evolution strategies are a class of stochastic, derivative-free black-box optimization algorithms. In an evolution strategy, individuals that are meant to be scored are sampled from a multivariate gaussian distribution. The parameters of this distribution (the mean and the covariance matrix) are then, based on the fitness of the individuals in such way that the expected fitness of the individuals of the next generation are maximized. To sum it up in an equation this means that ES algorithms work or the parameters $\theta$ of the distribution.
 
-![_config.yml]({{ site.baseurl }}/images/config.png)
+----
+****
 
-The easiest way to make your first post is to edit this one. Go into /_posts/ and update the Hello World markdown file. For more instructions head over to the [Jekyll Now repository](https://github.com/barryclark/jekyll-now) on GitHub.
