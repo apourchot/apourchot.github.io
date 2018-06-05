@@ -157,6 +157,11 @@ Convergence is somewhat slower, but the adaptation is still correct. Finally an 
 This time, things are a little more messy. We can see the bias that we mentioned several times above in action. The samples that are reused modify the shape of the covariance matrix in the early steps, which leads the optimization process into a local optimum.
 <br><br>
 
+
+## Conclusion
+
+From those experiments, we can conclude that the importance mixing mechanism does indeed allow for better sample efficiency. Simply reusing the samples from the previous generations can reduce the number of fitness evaluations by a factor of 5. However, contrary to our expectations, increasing the number of previous generations to sample from does not increase this gain in efficiency. The reason behind this behaviour is still unclear, and calls for further investigation.
+
 ----
 ****
 
