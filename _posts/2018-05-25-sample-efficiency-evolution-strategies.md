@@ -46,7 +46,7 @@ In their paper (Sun et al. 2009) propose to applied the first version of the imp
 
 ### Using the archive
 
-Since we are trying to maximize sample reuse, it could be tempting to apply the importance mixing mechanism to all the individuals of the archive and only keep those that were accepted. But this would undeniably bias the empirical distribution of the samples: the importance mixing mechanism as introduced above needs the inverse rejection sampling to be mathematically correct (i.e generate samples from the wanted distribution). Selecting only the samples that were sucessful in  the first step would be like selecting only coins that landed on heads when asked to select representative samples from an archive of coin toss. When the size of the population  is fixed (which is usually the case), we could however randomly sample n individuals from the archive and then apply the importance mixing step on  those individuals. But there is a chance that by doing that we would just select really poor samples and thus end up with poor reuse. Actually, if we want to maximize the probability to reuse a sample (suppose that \\(\alpha\\) is fixed), then we want to select samples such that the ratio \\(\frac{p(z, \theta)}{p(z, \theta^\prime)}\\) is as large as possible. A first naive algorithm could be the following:
+Since we are trying to maximize sample reuse, it could be tempting to apply the importance mixing mechanism to all the individuals of the archive and only keep those that were accepted. But this would undeniably bias the empirical distribution of the samples: the importance mixing mechanism as introduced above needs the inverse rejection sampling to be mathematically correct (i.e generate samples from the wanted distribution). Selecting only the samples that were sucessful in  the first step would be like selecting only coins that landed on heads when asked to select samples from an archive of coin toss. When the size of the population  is fixed (which is usually the case), we could however randomly sample n individuals from the archive and then apply the importance mixing step on  those individuals. But there is a chance that by doing that we would just select really poor samples and thus end up with poor reuse. Actually, if we want to maximize the probability to reuse a sample (suppose that \\(\alpha\\) is fixed), then we want to select samples such that the ratio \\(\frac{p(z, \theta)}{p(z, \theta^\prime)}\\) is as large as possible. A first naive algorithm could be the following:
 1. For all the individuals in  the archive, compute the ratio \\(\frac{p(z, \theta)}{p(z, \theta^\prime)}\\)
 2. Sort the individuals by their ratio
 3. Apply the importance mixing step to the \\(n\\) best samples.
@@ -102,37 +102,37 @@ We reproduce the same experiments with the "Random-k-Ancestor" strategy, again w
 ![alt-text-1](../images/cartpole_average_score_correct_0.4.png )
 <br><br>
 
-Here everything converges to the optimal maximum, irrespectively of the parameter values. This is in accordance with the sampling scheme, which is unbiased. Again, most of the time the results outperform both of the references, even without taking sample efficiency into account. 
+Here everything converges to the optimal maximum, irrespectively of the parameter values. This is in accordance with the sampling scheme, which is unbiased. Most of the time the results are on par with, or outperform both of the references, even without taking sample efficiency into account. 
 
 ### Sample reuse
 
-To take into account sample reuse, we modify the time scale in the above plots: instead of plotting the average score as a function of the index of the generation, we plot the average score as a function of the number of episodes evaluated up until this score was obtained. This means that periods of time where sample reuse was high will be contracted whereas periods of time where sample reuse was low will be expanded. This allows for a good comparison of the different strategies in terms of the number of function evaluations.
+To take into account sample reuse, we plot the average cumuluted number of reused sample during the experiments. This means that sample efficiency is encoded in the slope of the curves: during periods of time where sample reuse was high, the curve will quickly increase, whereas during periods of time where sample reuse was low, the curve will increase slowly. This allows for a good visual comparison  between the different strategies in terms of the number of function evaluations.
 
 #### Best-k-Ancestor 
 
 <br><br>
-![](../images/cartpole_sample_efficiency_theta_0.8.png )
+![](../images/cartpole_n_reused_theta_0.8.png )
 <br><br>
-![](../images/cartpole_sample_efficiency_theta_0.6.png )
+![](../images/cartpole_n_reused_theta_0.6.png )
 <br><br>
-![](../images/cartpole_sample_efficiency_theta_0.4.png )
+![](../images/cartpole_n_reused_theta_0.4.png )
 <br><br>
 
-For this strategy the effect of \\(k\\) is quite clear: increasing \\(k\\) reduces the sample efficiency of the algorithm. This is not what we expected. One would think that more generations to sample from would give better samples, and thus more sample reuse. But instead, it appears that looking at only the last generation gives the best results. Increasing \\(\alpha\\) seems to increase the speed of the convergence early in the optimization process (meaning more sample reuse). But as the speed increases, so do the chances that the optimization process might end in a sub-optimal region of the space. 
+For this strategy the effect of \\(k\\) is clear, at least during the beginning of the training. Increasing \\(k\\) reduces the sample efficiency of the algorithm. This is not what we expected. One would think that more generations to sample from would give better samples, and thus more sample reuse. But instead, it appears that looking at only the last generation gives the best results. This tendency seems to be reversing during late training, where higher \\(k\\) correlates with higher slope. Increasing \\(\alpha\\) clearly increases the average number of reused sample, without much surprise this time.
 
 #### Random-k-Ancestor
 
 <br><br>
-![](../images/cartpole_sample_efficiency_correct_0.8.png )
+![](../images/cartpole_n_reused_correct_0.8.png )
 <br><br>
-![](../images/cartpole_sample_efficiency_correct_0.6.png )
+![](../images/cartpole_n_reused_correct_0.6.png )
 <br><br>
-![](../images/cartpole_sample_efficiency_correct_0.4.png )
+![](../images/cartpole_n_reused_correct_0.4.png )
 <br><br>
 
-Here, the same rule applies for \\(\alpha\\): as it increases, so does sample reuse. However, increasing \\(k\\) has the opposite effect.
+Here, the same rules apply for \\(\alpha\\) and \\(k\\): as \\(\alpha\\) increases, so does sample reuse. However, increasing \\(k\\) has the opposite effect.
 
-All in all, it would seem that to get the best possible reuse whilst taking performance into account, the best parameters that could be chosen are \\(\alpha=1\\) and \\(k=1\\), which in fact is equivalent to using the importance mixing strategy as introduced by (Sun et al. 2009) (with their \\(\alpha\\) being \\(\epsilon\\) here). Although it could be argued that \\(k=2\\) produces better results, especially in the second strategy, we think that the optimal value is probably problem-dependent, but that the differences in performance are not significant enough here. As for the sampling strategy to choose, when \\(k\\) is equal to 1, both are equivalent (although the Best-k-Ancestor involves a sort, it takes almost no time compared to the evaluations of the densities). But if someone was to opt for a higher value of \\(k\\), then it would be important to keep using the Random-k-Ancestor strategy to ensure convergence.
+All in all, it would seem that to get the best possible reuse whilst taking performance into account, the best parameters that could be chosen are \\(\alpha=1\\) and \\(k=1\\) (for those parameters both strategies are identical), which in fact is equivalent to using the importance mixing strategy as introduced by (Sun et al. 2009) (with their \\(\alpha\\) being \\(\epsilon\\) here). It is interesting to see that as \\(k\\) increases, sample reuse suffers the most during early training, whereas results during late training are somehow equivalent regardless of the value of \\(k\\). We suspect this behavior to be correlated with the dynamics of the sampling distributions in the CMA-ES algorithm. As the optimization  process starts, CMA-ES quickly finds a direction for improvement (most likely because CartPole is relatively easy to solve), and commits to this direction by rapidly adapting the covariance matrix. During this phase CMA-ES probably takes large steps in a given direction, meaning that populations get far apart, explaining why only the latest population might have good candidates for sample reuse. On the other hand, once the optimization settles around an extrema, the sequence of covariance matrices collapses to a single point, meaning that the populations stay close from one another for a large number of generations, which eventually leads to more sample reuse.
 
 ## 2D experiments
 
@@ -160,7 +160,7 @@ This time, things are a little more messy. We can see the bias that we mentioned
 
 ## Conclusion
 
-From those experiments, we can conclude that the importance mixing mechanism does indeed allow for better sample efficiency. Simply reusing the samples from the previous generations can reduce the number of fitness evaluations by a factor of 5. However, contrary to our expectations, increasing the number of previous generations to sample from does not increase this gain in efficiency. The reason behind this behaviour is still unclear, and calls for further investigation.
+From those experiments, we can conclude that the importance mixing mechanism does indeed allow for better sample efficiency. Simply reusing the samples from the previous generations can reduce the number of fitness evaluations by a factor of at least 2 (this number could be increased easily, by setting \\(\alpha\\) to 1 and reducing \\(\epsilon\\) (which we didn't touch in our experiments). However, contrary to our expectations, increasing the number of previous generations to sample from does not increase this gain in efficiency. The reason behind this behaviour most likely lies in the CMA-ES algorithm itself, and calls for further investigation.
 
 ----
 ****
