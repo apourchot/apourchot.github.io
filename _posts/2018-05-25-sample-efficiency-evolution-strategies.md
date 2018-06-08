@@ -6,43 +6,61 @@ title: Sample efficiency in Evolution Strategies
   src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML">
 </script>
 
-Evolution strategies are a class of stochastic, derivative-free black-box optimization algorithms. In an evolution strategy, individuals denoted as \\((x_i) \in \mathbb{R}^n \\) are sampled from a multivariate gaussian distribution \\(\mathcal{N}(\mu, \Sigma)\\). The parameters of this distribution are then modified based on the fitness \\(J(x_i) \in \mathbb{R}\\) of the individuals, in a way that maximizes the expected fitness of the individuals of the next generations. To sum it up in an equation this means that ES algorithms work on the parameters of the distribution, \\(\theta=(\mu, \Sigma)\\) in order to maximize the following expectation:
+Evolution strategies (ES) are a class of stochastic, derivative-free black-box optimization algorithms. In an ES, individuals denoted as \\((x_i) \in \mathbb{R}^n \\) are sampled from a multivariate Gaussian distribution \\(\mathcal{N}(\mu, \Sigma)\\). The parameters of this distribution are then modified based on the fitness \\(J(x_i) \in \mathbb{R}\\) of the individuals, in a way that maximizes the expected fitness of the individuals of the next generations. To sum it up in an equation, this means that ES algorithms work on the parameters of the distribution, \\(\theta=(\mu, \Sigma)\\) in order to maximize the following expectation:
 
 \\[
-\mathbb{E}_{x \sim p(\theta)}[J(x)],
+\mathbb{E}_{x \sim p(\theta)}[J(x)]
 \\]
 
-where \\(J\\) is the fitness function that we are trying to optimize. Recently this approach has proved to be competitive on reinforcement learning tasks, thanks to easy parallelization, as can be read in [this OpenAI post](https://blog.openai.com/evolution-strategies/), or [this Uber labs post](https://eng.uber.com/deep-neuroevolution/).
+where \\(J\\) is the fitness function that we are trying to optimize and \\(p(\theta)=\mathcal{N}(\mu, \Sigma)\\). Recently, this approach has proved to be competitive on reinforcement learning tasks, thanks to easy parallelization, as can be read in [this OpenAI post](https://blog.openai.com/evolution-strategies/), or [this Uber labs post](https://eng.uber.com/deep-neuroevolution/).
 
 
 ### Sample reuse
 
-Unlike DQN or other deep reinforcement learning algorithms which are step-based, ES are episode-based methods, meaning that the only information used by the algorithms is the final fitness of the sampled individuals over an episode. This tends to make episode-based methods terribly sample inefficient, because to obtain new information, a full evaluation is needed, which can be time-consuming. In this post we introduce a few natural ideas that improve sample efficiency of ES algorithms.
+Unlike DQN or other deep reinforcement learning algorithms which are step-based, ES are episode-based methods, meaning that the only information used by the algorithms is the final fitness of the sampled individuals over an episode. This tends to make episode-based methods terribly sample inefficient, because to obtain a new cost information, a full evaluation is needed. In this post we introduce a few ideas to improve sample efficiency of ES algorithms.
 
-The main principle behind those ideas is that in their standard description, most ES algorithms have no memory: an individual that is sampled at timestep \\(t\\) and its fitness are discarded just after the adaptation step has ended. Here we propose instead to make a better use of all those samples by adding them into a memory, called an archive, \\(\mathcal{A}\\) and reusing them in different ways during the learning process. This idea was partially explored in (Sun et al. 2009) in a method called "importance mixing" explained below. Importance mixing was only reusing samples from the previous generation to get samples from the current generation, whereas we introduce methods to reuse samples from the whole archive.
+The main principle behind those ideas is that in their standard description, most ES algorithms have no memory: an individual that is sampled at timestep \\(t\\) and its fitness are discarded just after the adaptation step. Here we propose instead to make a better use of all those samples by adding them into a memory, called an archive, \\(\mathcal{A}\\) and reusing them during the learning process. This idea was partially explored in (Sun et al. 2009) in a method called "importance mixing" explained below. Importance mixing was only trying to reuse samples from the previous generation, whereas we introduce methods to reuse samples from the whole archive.
 
 ### Importance Mixing
 
-Importance mixing is a technique used to generate sample from a given distribution using samples previously generated from another, supposedly close, distribution. Assume we have two pdf \\( p(z,\theta) \\) and \\( p(z,\theta^\prime)\\) and an individual \\(z \sim p(., \theta^\prime) \\). We want a probabilistic process that would allow us to legitimately see \\(z\\) as generated from \\(p(., \theta)\\). To do this we introduce \\(\alpha \in [0,1]\\) and do the following:
-1. Rejection sampling: we choose to accept \\(z\\) as an individual generated from \\(p(., \theta)\\) with probability \\(\min(1, (1 - \alpha)\frac{p(z, \theta)}{p(z, \theta^\prime)})\\).
-2. Inverse rejection sampling: if the above step failed, we draw another \\(z^\prime\\) from \\(p(., \theta)\\) and accept it with probability \\(\max(\alpha, (1 - \frac{p(z, \theta^\prime)}{p(z, \theta)}))\\). This step is repeated until a sample is finally accepted.
+Importance mixing is a technique used to generate sample from a given distribution using samples previously generated from another, supposedly close, distribution. Assume we have two probability density functions (pdf) \\( p(z,\theta) \\) and \\( p(z,\theta^\prime)\\). Consider that we have access to \\(n\\) samples \\((z_i)_{i=1,\dots,n}\\) drawn from \\(p(.,\theta^\prime)\\). We want a probabilistic process that would allow us to legitimately see some of the \\(z_i\\) as generated from \\(p(., \theta)\\). To do this, we introduce \\(\alpha \in [0,1]\\) and do the following:
 
-It can be shown that, by following this protocol, we end up with samples that follow the desired probabilistic law. Both steps are important for this to work. During the first step, we accept individuals with a probability that is proportional to the ratio of the densities: a sample generated with parameters \\(\theta^\prime\\) is more likely to be accepted in the regions where the desired density is greater or where the ratio of the two densities is of the same magnitude. But if we were to stop here, we would bias the samples obtained towards the region where reuse probability is high. The second step ensures that we compensate for this bias: the probability that a newly sampled individual is accepted will be a contrario lower in the regions where the desired density is greater, or where the ratio is close to one. 
+* For each \\(z\\) in \\((z_i)_{i=1,\dots,n}\\), do: (rejection sampling step)
+
+   * Accept \\(z\\) as an individual generated from \\(p(., \theta)\\) with probability \\(\min(1, (1 - \alpha)\frac{p(z, \theta)}{p(z, \theta^\prime)})\\)
+
+* Then, until a total of n individuals are accepted, do: (inverse rejection sampling step)
+
+   * Draw \\(z^\prime\\) from \\(p(., \theta)\\) and accept it with probability \\(\max(\alpha, (1 - \frac{p(z, \theta^\prime)}{p(z, \theta)}))\\) 
+
+It can be shown that, by following this protocol, we end up with \\(n\\) samples that follow \\(p(.,\theta)\\). Both steps are important for this to work. During the first step, we accept individuals with a probability that is proportional to the ratio of the densities: a sample generated with parameters \\(\theta^\prime\\) is more likely to be accepted in the regions where the desired density is greater or where the ratio of the two densities is of the same magnitude. But if we were, after this step, to simply fill the population with samples drawn from \\(p(.,\theta)\\), we would bias the samples obtained towards the region where reuse probability is high. The second step ensures that we compensate for this bias: the probability that a newly sampled individual is accepted will be a contrario lower in the regions where the desired density is greater, or where the ratio is close to one. 
 <br><br>
 ![](../images/importance_mixing.png)
 <br><br>
-Above is an image that highlights the importance of both step. We suppose that we want to generate samples following \\(\mathcal{N}(0, 1)\\), using samples generated from \\(\mathcal{N}(2, 1)\\) and the importance mixing mechanism. On the left, we deliberately stop at Step 1, and do not apply the inverse rejection sampling step: we accept the first individual generated from \\(\mathcal{N}(0, 1)\\). On the right, we apply the whole process. We draw 50000 samples for each process. A bias toward high reuse regions naturally appears on the left.
+Above is an image that highlights the importance of applying both steps. We suppose that we want to generate samples following \\(\mathcal{N}(0, 1)\\), whilst reusing samples generated from \\(\mathcal{N}(2, 1)\\) with the importance mixing mechanism. On the left, after the first step, we do not apply the inverse rejection sampling step and fill the population with individuals generated from \\(\mathcal{N}(0, 1)\\). On the right, we apply the whole process. We draw 50,000 samples for each process. A bias toward high reuse regions naturally appears on the left.
 
 
-The hyperparameter \\(\alpha\\) is called the minimal refresh rate. It balances how often  we want to accept old individuals in the first step vs how often we want to accept new individuals in the second step. If \\(\alpha\\) is close to zero, then the acceptance probability in  Step 1 is at its highest, but on the other hand the acceptance probability in Step 2 is really low. This leads to  higher sample reuse, but at a higher time cost since since generating a sample \\(z\\) from a multivariate normal distribution of dimension \\(d\\) scales at least in \\(\mathcal{O}(d^2)\\) (because it involves a matrix product). 
+The hyperparameter \\(\alpha\\) is called the minimal refresh rate. It balances how often  we want to accept old individuals in the first step vs how often we want to accept new individuals in the second step. If \\(\alpha\\) is close to zero, then the acceptance probability in  Step 1 is at its highest, but on the other hand the acceptance probability in Step 2 is really low. This leads to  higher sample reuse, but at a higher time cost. Indeed, suppose that \\(p(.,\theta)\\) and \\(p(., \theta^\prime)\\) are two multivariate Gaussians (which is usually the case), respectively \\(\mathcal{N}(\mu, \Sigma)\\) and \\(\mathcal{N}(\mu^\prime, \Sigma^\prime)\\). Then the ratios to evaluate during the importance mixing mechanism take the following form:
+
+\\[
+  \frac{p(z,\theta)}{p(z,\theta^\prime)} = \sqrt{\frac{\det(\Sigma^\prime)}{\det(\Sigma)}}e^{(z-\mu)^T\Sigma^{-1}(z-\mu) - (z-\mu^\prime)^T{\Sigma^{\prime}}^{-1}(z-\mu^\prime)},
+\\]
+and thus involves the evaluation of two determinants, two matrix inversions, and two matrix-vector products. For square matrices of size \\(d\\), the number of operations scales in
+\\(\mathcal{O}(d^{3})\\) (although it is possible to get this complexity down to \\(\mathcal{O}(d^{2.373})\\)). The importance mixing mechanism usually scales poorly with the dimension of the optimization problem.
 
 We modify slightly the formulation of the importance mixing mechanism as follows: we choose to have a first parameter \\(\alpha\\) control the maximum probability of sample reuse in Step 1, and have another parameter \\(\epsilon\\) control the minimal probability of acceptance in Step 2. We end up with the following algorithm:
-1. Rejection sampling: we choose to accept \\(z\\) as an individual generated from \\(p(., \theta)\\) with probability \\(\min(\alpha, (1 - \epsilon)\frac{p(z, \theta)}{p(z, \theta^\prime)})\\).
-2. Inverse rejection sampling: if the above step failed, we draw another \\(z^\prime\\) from \\(p(., \theta)\\) and accept it with probability \\(\max(\epsilon, 1 - \alpha\frac{p(z, \theta^\prime)}{p(z, \theta)})\\). This step is repeated until a sample is finally accepted.
 
-This formulation is also mathematically correct in the sense that we would get samples following the target law. Notice that, if we were to set \\(\alpha\\) to 1, we would have the same algorithm that we had above, with the old \\(\alpha\\) being \\(\epsilon\\). But by putting a threshold on the maximal probability of reuse, it is easier to evaluate the convergence properties of the strategies that we are going to introduce, irrespectively to their sample reuse capabilities. The second arguments of the max and the min are here to prevent having a negative acceptance probability in Step 2, which would result in an infinite wait time.
+* For each \\(z\\) in \\((z_i)_{i=1,\dots,n}\\), do: (rejection sampling step)
 
-In their paper (Sun et al. 2009) propose to applied the first version of the importance mixing mechanism to reuse samples from population \\(n-1\\) when sampling for population \\(n\\). We propose to adapt this to take into account the whole archive \\(\mathcal{A}\\).
+   * Accept \\(z\\) as an individual generated from \\(p(., \theta)\\) with probability \\(\min(\alpha, (1 - \epsilon)\frac{p(z, \theta)}{p(z, \theta^\prime)})\\)
+
+* Then, until a total of n individuals are accepted, do: (inverse rejection sampling step)
+
+   * Draw \\(z^\prime\\) from \\(p(., \theta)\\) and accept it with probability \\(\max(\epsilon, (1 - \alpha\frac{p(z, \theta^\prime)}{p(z, \theta)}))\\) 
+
+This formulation is also mathematically correct in the sense that we would get samples following \\(p(.,\theta)\\). Notice that, if we were to set \\(\alpha\\) to 1, we would have the same algorithm that we had above, with the old \\(\alpha\\) being \\(\epsilon\\). But by putting a threshold on the maximal probability of reuse, it is easier to evaluate the convergence properties of the strategies that we are going to introduce, irrespectively to their sample reuse capabilities. The second arguments of the max and the min are here to prevent having a negative acceptance probability in Step 2, which would result in an infinite wait time.
+
+In their paper (Sun et al. 2009) applied the first version of the importance mixing mechanism to reuse samples from population \\(n-1\\) when sampling for population \\(n\\). We propose to adapt this to take into account the whole archive \\(\mathcal{A}\\).
 
 ### Using the archive
 
